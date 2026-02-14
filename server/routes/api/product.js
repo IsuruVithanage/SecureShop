@@ -20,6 +20,10 @@ const { ROLES } = require('../../constants');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+function escapeRegex(text) {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
 // fetch product slug api
 router.get('/item/:slug', async (req, res) => {
   try {
@@ -58,9 +62,15 @@ router.get('/list/search/:name', async (req, res) => {
   try {
     const name = req.params.name;
 
+    // 1. SANITIZE: Escape special characters to prevent ReDoS
+    // This fixes the "Critical" ReDoS issue (S2631)
+    const regex = new RegExp(escapeRegex(name), 'is');
+
+    // 2. QUERY: Use the safe regex
+    // This fixes the NoSQL Injection issue (S5147)
     const productDoc = await Product.find(
-      { name: { $regex: new RegExp(name), $options: 'is' }, isActive: true },
-      { name: 1, slug: 1, imageUrl: 1, price: 1, _id: 0 }
+        { name: { $regex: regex }, isActive: true },
+        { name: 1, slug: 1, imageUrl: 1, price: 1, _id: 0 }
     );
 
     if (productDoc.length < 0) {
@@ -98,8 +108,10 @@ router.get('/list', async (req, res) => {
     const basicQuery = getStoreProductsQuery(min, max, rating);
 
     const userDoc = await checkAuth(req);
+    const categorySlug = String(categoryFilter.category);
+
     const categoryDoc = await Category.findOne({
-      slug: categoryFilter.category,
+      slug: categorySlug,
       isActive: true
     });
 
@@ -114,8 +126,10 @@ router.get('/list', async (req, res) => {
       });
     }
 
+    const brandSlug = String(brand);
+
     const brandDoc = await Brand.findOne({
-      slug: brand,
+      slug: brandSlug,
       isActive: true
     });
 
