@@ -202,6 +202,10 @@ router.get('/:orderId', auth, async (req, res) => {
   try {
     const orderId = req.params.orderId;
 
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ error: 'Invalid Order ID format' });
+    }
+
     let orderDoc = null;
 
     if (req.user.role === ROLES.Admin) {
