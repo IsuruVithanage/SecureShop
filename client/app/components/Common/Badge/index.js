@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 const variants = {
   primary: 'custom-badge-primary',
@@ -20,11 +21,11 @@ const Badge = props => {
 
   const v = variant ? variants[variant] : '';
 
-  const badgeVariant = v;
-
-  const classNames = `custom-badge${`${className && ` ${className}`}`}${
-    badgeVariant && ` ${badgeVariant}`
-  }`;
+  const classNames = [
+    'custom-badge',
+    className,
+    v
+  ].filter(Boolean).join(' ');
 
   return (
     <span
@@ -36,6 +37,21 @@ const Badge = props => {
       {children}
     </span>
   );
+};
+
+Badge.propTypes = {
+  variant: PropTypes.oneOf([
+    'primary',
+    'secondary',
+    'danger',
+    'dark',
+    'none',
+    'empty'
+  ]),
+  className: PropTypes.string,
+  borderless: PropTypes.bool,
+  round: PropTypes.oneOfType([PropTypes.string, PropTypes.number]), // Handles '3' or 3
+  children: PropTypes.node
 };
 
 Badge.defaultProps = {

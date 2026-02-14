@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 import Tooltip from '../Tooltip';
 import Popover from '../Popover';
@@ -98,6 +99,31 @@ const Button = props => {
       )}
     </button>
   );
+};
+
+Button.propTypes = {
+  id: PropTypes.string,
+  size: PropTypes.string,
+  variant: PropTypes.string,
+  tabIndex: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  ariaLabel: PropTypes.string,
+  ariaExpanded: PropTypes.bool,
+  type: PropTypes.string,
+  disabled: PropTypes.bool,
+  className: PropTypes.string,
+  text: PropTypes.string,
+  role: PropTypes.string,
+  icon: PropTypes.node,
+  iconDirection: PropTypes.string,
+  iconClassName: PropTypes.string,
+  borderless: PropTypes.bool,
+  round: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+  onClick: PropTypes.func,
+  tooltip: PropTypes.bool,
+  tooltipContent: PropTypes.node,
+  popover: PropTypes.bool,
+  popoverContent: PropTypes.node,
+  popoverTitle: PropTypes.string
 };
 
 Button.defaultProps = {
