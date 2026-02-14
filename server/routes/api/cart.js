@@ -36,7 +36,15 @@ router.post('/add', auth, async (req, res) => {
 
 router.delete('/delete/:cartId', auth, async (req, res) => {
   try {
-    await Cart.deleteOne({ _id: req.params.cartId });
+    const cartId = req.params.cartId;
+
+    if (!mongoose.Types.ObjectId.isValid(cartId)) {
+      return res.status(400).json({
+        error: 'Invalid Cart ID format.'
+      });
+    }
+
+    await Cart.deleteOne({ _id: cartId });
 
     res.status(200).json({
       success: true
