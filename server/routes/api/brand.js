@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 
 // Bring in Models & Utils
@@ -91,6 +92,12 @@ router.get('/:id', async (req, res) => {
   try {
     const brandId = req.params.id;
 
+    if (!mongoose.Types.ObjectId.isValid(brandId)) {
+      return res.status(400).json({
+        message: 'Invalid Brand ID.'
+      });
+    }
+
     const brandDoc = await Brand.findOne({ _id: brandId }).populate(
       'merchant',
       '_id'
@@ -153,11 +160,15 @@ router.put(
       const query = { _id: brandId };
       const { slug } = req.body.brand;
 
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
+
       const foundBrand = await Brand.findOne({
         $or: [{ slug }]
       });
 
-      if (foundBrand && foundBrand._id != brandId) {
+      if (foundBrand && foundBrand._id.toString() !== brandId) {
         return res.status(400).json({ error: 'Slug is already in use.' });
       }
 
@@ -186,6 +197,10 @@ router.put(
       const brandId = req.params.id;
       const update = req.body.brand;
       const query = { _id: brandId };
+
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
 
       // disable brand(brandId) products
       if (!update.isActive) {
@@ -216,6 +231,11 @@ router.delete(
   async (req, res) => {
     try {
       const brandId = req.params.id;
+
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
+
       await deactivateMerchant(brandId);
       const brand = await Brand.deleteOne({ _id: brandId });
 

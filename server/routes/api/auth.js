@@ -26,6 +26,10 @@ router.post('/login', async (req, res) => {
         .json({ error: 'You must enter an email address.' });
     }
 
+    if (typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid email format.' });
+    }
+
     if (!password) {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
@@ -88,6 +92,10 @@ router.post('/register', async (req, res) => {
       return res
         .status(400)
         .json({ error: 'You must enter an email address.' });
+    }
+
+    if (typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid email format.' });
     }
 
     if (!firstName || !lastName) {
@@ -170,6 +178,10 @@ router.post('/forgot', async (req, res) => {
         .json({ error: 'You must enter an email address.' });
     }
 
+    if (typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid email format.' });
+    }
+
     const existingUser = await User.findOne({ email });
 
     if (!existingUser) {
@@ -207,13 +219,18 @@ router.post('/forgot', async (req, res) => {
 router.post('/reset/:token', async (req, res) => {
   try {
     const { password } = req.body;
+    const token = req.params.token; // Extract token
 
     if (!password) {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
 
+    if (typeof token !== 'string') {
+      return res.status(400).json({ error: 'Invalid token format.' });
+    }
+
     const resetUser = await User.findOne({
-      resetPasswordToken: req.params.token,
+      resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() }
     });
 

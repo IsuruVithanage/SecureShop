@@ -76,6 +76,12 @@ router.get('/:id', async (req, res) => {
   try {
     const categoryId = req.params.id;
 
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({
+        error: 'Invalid Category ID format.'
+      });
+    }
+
     const categoryDoc = await Category.findOne({ _id: categoryId }).populate({
       path: 'products',
       select: 'name'

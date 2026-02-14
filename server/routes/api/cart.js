@@ -36,7 +36,15 @@ router.post('/add', auth, async (req, res) => {
 
 router.delete('/delete/:cartId', auth, async (req, res) => {
   try {
-    await Cart.deleteOne({ _id: req.params.cartId });
+    const cartId = req.params.cartId;
+
+    if (!mongoose.Types.ObjectId.isValid(cartId)) {
+      return res.status(400).json({
+        error: 'Invalid Cart ID format.'
+      });
+    }
+
+    await Cart.deleteOne({ _id: cartId });
 
     res.status(200).json({
       success: true
@@ -50,8 +58,16 @@ router.delete('/delete/:cartId', auth, async (req, res) => {
 
 router.post('/add/:cartId', auth, async (req, res) => {
   try {
+    const cartId = req.params.cartId;
     const product = req.body.product;
-    const query = { _id: req.params.cartId };
+
+    if (!mongoose.Types.ObjectId.isValid(cartId)) {
+      return res.status(400).json({
+        error: 'Invalid Cart ID format.'
+      });
+    }
+
+    const query = { _id: cartId };
 
     await Cart.updateOne(query, { $push: { products: product } }).exec();
 
@@ -67,10 +83,28 @@ router.post('/add/:cartId', auth, async (req, res) => {
 
 router.delete('/delete/:cartId/:productId', auth, async (req, res) => {
   try {
-    const product = { product: req.params.productId };
-    const query = { _id: req.params.cartId };
+    const cartId = req.params.cartId;
+    const productId = req.params.productId;
 
-    await Cart.updateOne(query, { $pull: { products: product } }).exec();
+    if (
+      !mongoose.Types.ObjectId.isValid(cartId) ||
+      !mongoose.Types.ObjectId.isValid(productId)
+    ) {
+      return res.status(400).json({
+        error: 'Invalid ID format provided.'
+      });
+    }
+
+    const query = { _id: cartId };
+    const update = { $pull: { products: { product: productId } } };
+
+    const result = await Cart.updateOne(query, update).exec();
+
+    if (result.nModified === 0) {
+      return res.status(404).json({
+        message: 'Cart not found or you are not authorized to modify it.'
+      });
+    }
 
     res.status(200).json({
       success: true
