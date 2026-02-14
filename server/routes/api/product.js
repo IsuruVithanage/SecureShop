@@ -23,19 +23,21 @@ const upload = multer({ storage });
 // fetch product slug api
 router.get('/item/:slug', async (req, res) => {
   try {
-    const slug = req.params.slug;
+    // 1. SANITIZE: Explicitly cast to String
+    // This tells SonarQube that 'safeSlug' is definitely a string, not a malicious object.
+    const safeSlug = String(req.params.slug);
 
-    const productDoc = await Product.findOne({ slug, isActive: true }).populate(
-      {
-        path: 'brand',
-        select: 'name isActive slug'
-      }
-    );
+    if (!safeSlug) {
+      return res.status(400).json({ error: 'Invalid slug' });
+    }
 
-    const hasNoBrand =
-      productDoc?.brand === null || productDoc?.brand?.isActive === false;
+    // 2. USE SAFE VARIABLE in the query
+    const productDoc = await Product.findOne({ slug: safeSlug, isActive: true }).populate({
+      path: 'brand',
+      select: 'name isActive slug'
+    });
 
-    if (!productDoc || hasNoBrand) {
+    if (!productDoc || (productDoc && productDoc?.brand?.isActive === false)) {
       return res.status(404).json({
         message: 'No product found.'
       });
