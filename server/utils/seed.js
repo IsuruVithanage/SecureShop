@@ -12,8 +12,8 @@ const Brand = require("../models/brand");
 const Product = require("../models/product");
 const Category = require("../models/category");
 
-require("dotenv").config({ path: "./server/.env" }); // Adjust if your .env is elsewhere
-
+require("dotenv").config({ path: __dirname + "/../.env" });
+console.log("Loaded MONGO_URI:", process.env.MONGO_URI);
 // Get CLI args
 const args = process.argv.slice(2);
 const email = args[0];
