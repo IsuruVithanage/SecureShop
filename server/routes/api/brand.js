@@ -160,11 +160,15 @@ router.put(
       const query = { _id: brandId };
       const { slug } = req.body.brand;
 
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
+
       const foundBrand = await Brand.findOne({
         $or: [{ slug }]
       });
 
-      if (foundBrand && foundBrand._id != brandId) {
+      if (foundBrand && foundBrand._id.toString() !== brandId) {
         return res.status(400).json({ error: 'Slug is already in use.' });
       }
 
