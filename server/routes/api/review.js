@@ -6,6 +6,7 @@ const Review = require('../../models/review');
 const Product = require('../../models/product');
 const auth = require('../../middleware/auth');
 const { REVIEW_STATUS } = require('../../constants');
+const {Types} = require("mongoose/lib/schema");
 
 router.post('/add', auth, async (req, res) => {
   try {
@@ -66,10 +67,14 @@ router.get('/', async (req, res) => {
 
 router.get('/:slug', async (req, res) => {
   try {
-    const productDoc = await Product.findOne({ slug: req.params.slug });
+    const slug = req.params.slug;
+
+    const safeSlug = String(slug);
+
+    const productDoc = await Product.findOne({ slug: safeSlug });
 
     const hasNoBrand =
-      productDoc?.brand === null || productDoc?.brand?.isActive === false;
+        productDoc?.brand === null || productDoc?.brand?.isActive === false;
 
     if (!productDoc || hasNoBrand) {
       return res.status(404).json({
@@ -80,12 +85,7 @@ router.get('/:slug', async (req, res) => {
     const reviews = await Review.find({
       product: productDoc._id,
       status: REVIEW_STATUS.Approved
-    })
-      .populate({
-        path: 'user',
-        select: 'firstName'
-      })
-      .sort('-created');
+    }).populate('user');
 
     res.status(200).json({
       reviews
@@ -101,7 +101,12 @@ router.put('/:id', async (req, res) => {
   try {
     const reviewId = req.params.id;
     const update = req.body;
-    const query = { _id: reviewId };
+
+    if (!Mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({ error: 'Invalid Review ID' });
+    }
+
+    const query = { _id: new Mongoose.Types.ObjectId(reviewId) };
 
     await Review.findOneAndUpdate(query, update, {
       new: true
@@ -109,7 +114,7 @@ router.put('/:id', async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'review has been updated successfully!'
+      message: 'Review has been successfully updated!'
     });
   } catch (error) {
     res.status(400).json({
@@ -118,12 +123,15 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// approve review
 router.put('/approve/:reviewId', auth, async (req, res) => {
   try {
     const reviewId = req.params.reviewId;
 
-    const query = { _id: reviewId };
+    if (!Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({ error: 'Invalid Review ID' });
+    }
+    const query = { _id: new Mongoose.Types.ObjectId(reviewId) };
+
     const update = {
       status: REVIEW_STATUS.Approved,
       isActive: true
@@ -134,7 +142,8 @@ router.put('/approve/:reviewId', auth, async (req, res) => {
     });
 
     res.status(200).json({
-      success: true
+      success: true,
+      message: 'Review has been successfully approved!'
     });
   } catch (error) {
     res.status(400).json({
@@ -148,7 +157,12 @@ router.put('/reject/:reviewId', auth, async (req, res) => {
   try {
     const reviewId = req.params.reviewId;
 
-    const query = { _id: reviewId };
+    // FIX: Validate & Sanitize
+    if (!Mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({ error: 'Invalid Review ID' });
+    }
+    const query = { _id: new Mongoose.Types.ObjectId(reviewId) };
+
     const update = {
       status: REVIEW_STATUS.Rejected
     };
@@ -158,7 +172,8 @@ router.put('/reject/:reviewId', auth, async (req, res) => {
     });
 
     res.status(200).json({
-      success: true
+      success: true,
+      message: 'Review has been successfully rejected!'
     });
   } catch (error) {
     res.status(400).json({
@@ -167,17 +182,26 @@ router.put('/reject/:reviewId', auth, async (req, res) => {
   }
 });
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth, async (req, res) => {
   try {
-    const review = await Review.deleteOne({ _id: req.params.id });
+    const reviewId = req.params.id;
+
+    // FIX: Validate & Sanitize
+    if (!Mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({ error: 'Invalid Review ID' });
+    }
+
+    const safeReviewId = new Mongoose.Types.ObjectId(reviewId);
+
+    const review = await Review.deleteOne({ _id: safeReviewId });
 
     res.status(200).json({
       success: true,
-      message: `review has been deleted successfully!`,
+      message: `Review has been deleted successfully!`,
       review
     });
   } catch (error) {
-    return res.status(400).json({
+    res.status(400).json({
       error: 'Your request could not be processed. Please try again.'
     });
   }
