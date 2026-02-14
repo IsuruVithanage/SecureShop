@@ -26,6 +26,10 @@ router.post('/login', async (req, res) => {
         .json({ error: 'You must enter an email address.' });
     }
 
+    if (typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid email format.' });
+    }
+
     if (!password) {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
