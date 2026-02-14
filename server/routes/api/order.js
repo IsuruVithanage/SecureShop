@@ -271,13 +271,31 @@ router.delete('/cancel/:orderId', auth, async (req, res) => {
   try {
     const orderId = req.params.orderId;
 
-    const order = await Order.findOne({ _id: orderId });
+    // 1. VALIDATE
+    if (!Mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ error: 'Invalid Order ID' });
+    }
+
+    // 2. SANITIZE
+    const safeId = new Mongoose.Types.ObjectId(orderId);
+
+    // 3. USE SAFE ID
+    const order = await Order.findOne({ _id: safeId });
+
+    // Add null check to prevent crash if order not found
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
     const foundCart = await Cart.findOne({ _id: order.cart });
 
-    increaseQuantity(foundCart.products);
+    if (foundCart) {
+      increaseQuantity(foundCart.products);
+      await Cart.deleteOne({ _id: order.cart });
+    }
 
-    await Order.deleteOne({ _id: orderId });
-    await Cart.deleteOne({ _id: order.cart });
+    // Use safeId here as well
+    await Order.deleteOne({ _id: safeId });
 
     res.status(200).json({
       success: true
