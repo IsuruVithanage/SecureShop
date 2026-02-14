@@ -231,6 +231,11 @@ router.delete(
   async (req, res) => {
     try {
       const brandId = req.params.id;
+
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
+
       await deactivateMerchant(brandId);
       const brand = await Brand.deleteOne({ _id: brandId });
 
