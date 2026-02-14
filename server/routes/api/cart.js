@@ -58,8 +58,16 @@ router.delete('/delete/:cartId', auth, async (req, res) => {
 
 router.post('/add/:cartId', auth, async (req, res) => {
   try {
+    const cartId = req.params.cartId;
     const product = req.body.product;
-    const query = { _id: req.params.cartId };
+
+    if (!mongoose.Types.ObjectId.isValid(cartId)) {
+      return res.status(400).json({
+        error: 'Invalid Cart ID format.'
+      });
+    }
+
+    const query = { _id: cartId };
 
     await Cart.updateOne(query, { $push: { products: product } }).exec();
 
