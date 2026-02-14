@@ -219,13 +219,18 @@ router.post('/forgot', async (req, res) => {
 router.post('/reset/:token', async (req, res) => {
   try {
     const { password } = req.body;
+    const token = req.params.token; // Extract token
 
     if (!password) {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
 
+    if (typeof token !== 'string') {
+      return res.status(400).json({ error: 'Invalid token format.' });
+    }
+
     const resetUser = await User.findOne({
-      resetPasswordToken: req.params.token,
+      resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() }
     });
 
