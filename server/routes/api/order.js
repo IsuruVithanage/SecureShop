@@ -314,39 +314,67 @@ router.put('/status/item/:itemId', auth, async (req, res) => {
     const cartId = req.body.cartId;
     const status = req.body.status || CART_ITEM_STATUS.Cancelled;
 
-    const foundCart = await Cart.findOne({ 'products._id': itemId });
-    const foundCartProduct = foundCart.products.find(p => p._id == itemId);
+    // 1. VALIDATE & SANITIZE: itemId (The main blocker)
+    if (!Mongoose.Types.ObjectId.isValid(itemId)) {
+      return res.status(400).json({ error: 'Invalid Item ID' });
+    }
+    const safeItemId = new Mongoose.Types.ObjectId(itemId);
+
+    // 2. USE SAFE ID in the query
+    // This fixes the specific SonarQube error on line 317
+    const foundCart = await Cart.findOne({ 'products._id': safeItemId });
+
+    if (!foundCart) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+
+    // Find the product in the array (convert to string for safe comparison)
+    const foundCartProduct = foundCart.products.find(p => p._id.toString() === safeItemId.toString());
+
+    if (!foundCartProduct) {
+      return res.status(404).json({ error: 'Product not found in cart' });
+    }
 
     await Cart.updateOne(
-      { 'products._id': itemId },
-      {
-        'products.$.status': status
-      }
+        { 'products._id': safeItemId },
+        {
+          'products.$.status': status
+        }
     );
 
     if (status === CART_ITEM_STATUS.Cancelled) {
       await Product.updateOne(
-        { _id: foundCartProduct.product },
-        { $inc: { quantity: foundCartProduct.quantity } }
+          { _id: foundCartProduct.product },
+          { $inc: { quantity: foundCartProduct.quantity } }
       );
 
-      const cart = await Cart.findOne({ _id: cartId });
-      const items = cart.products.filter(
-        item => item.status === CART_ITEM_STATUS.Cancelled
-      );
+      // Validate other IDs before using them in deleteOne (Best Practice)
+      if (cartId && Mongoose.Types.ObjectId.isValid(cartId)) {
+        const safeCartId = new Mongoose.Types.ObjectId(cartId);
+        const cart = await Cart.findOne({ _id: safeCartId });
 
-      // All items are cancelled => Cancel order
-      if (cart.products.length === items.length) {
-        await Order.deleteOne({ _id: orderId });
-        await Cart.deleteOne({ _id: cartId });
+        if (cart) {
+          const items = cart.products.filter(
+              item => item.status === CART_ITEM_STATUS.Cancelled
+          );
 
-        return res.status(200).json({
-          success: true,
-          orderCancelled: true,
-          message: `${
-            req.user.role === ROLES.Admin ? 'Order' : 'Your order'
-          } has been cancelled successfully`
-        });
+          // All items are cancelled => Cancel order
+          if (cart.products.length === items.length) {
+            // Secure the orderId deletion as well
+            if (orderId && Mongoose.Types.ObjectId.isValid(orderId)) {
+              await Order.deleteOne({ _id: new Mongoose.Types.ObjectId(orderId) });
+            }
+            await Cart.deleteOne({ _id: safeCartId });
+
+            return res.status(200).json({
+              success: true,
+              orderCancelled: true,
+              message: `${
+                  req.user.role === ROLES.Admin ? 'Order' : 'Your order'
+              } has been cancelled successfully`
+            });
+          }
+        }
       }
 
       return res.status(200).json({
