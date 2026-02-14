@@ -97,7 +97,6 @@ router.get('/list/search/:name', async (req, res) => {
   }
 });
 
-// fetch store products by advanced filters api
 router.get('/list', async (req, res) => {
   try {
     let {
@@ -110,45 +109,82 @@ router.get('/list', async (req, res) => {
       page = 1,
       limit = 10
     } = req.query;
-    sortOrder = JSON.parse(sortOrder);
 
-    const categoryFilter = category ? { category } : {};
+    // --- FIX START: Sanitize sortOrder ---
+    // Prevent NoSQL Injection by rebuilding the sort object safely
+    let safeSortOrder = { created: -1 }; // Default sort
+
+    try {
+      if (sortOrder) {
+        const parsedSort = JSON.parse(sortOrder);
+        const allowedSortFields = ['price', 'created', 'name', 'rating'];
+
+        // Reset to empty so we only add valid keys
+        let validSort = {};
+
+        Object.keys(parsedSort).forEach(key => {
+          if (allowedSortFields.includes(key)) {
+            // Force value to be a number (1 or -1) to prevent operator injection
+            const val = Number(parsedSort[key]);
+            if (val === 1 || val === -1) {
+              validSort[key] = val;
+            }
+          }
+        });
+
+        // Only update if we found valid keys
+        if (Object.keys(validSort).length > 0) {
+          safeSortOrder = validSort;
+        }
+      }
+    } catch (error) {
+      console.log('Invalid sortOrder JSON, using default');
+      safeSortOrder = { created: -1 };
+    }
+    // --- FIX END ---
+
     const basicQuery = getStoreProductsQuery(min, max, rating);
 
     const userDoc = await checkAuth(req);
-    const categorySlug = String(categoryFilter.category);
 
-    const categoryDoc = await Category.findOne({
-      slug: categorySlug,
-      isActive: true
-    });
+    // FIX: Only query Category if provided
+    if (category) {
+      const categorySlug = String(category); // Explicit cast
+      const categoryDoc = await Category.findOne({
+        slug: categorySlug,
+        isActive: true
+      });
 
-    if (categoryDoc) {
-      basicQuery.push({
-        $match: {
-          isActive: true,
-          _id: {
-            $in: Array.from(categoryDoc.products)
+      if (categoryDoc) {
+        basicQuery.push({
+          $match: {
+            isActive: true,
+            _id: {
+              $in: Array.from(categoryDoc.products)
+            }
           }
-        }
-      });
+        });
+      }
     }
 
-    const brandSlug = String(brand);
-
-    const brandDoc = await Brand.findOne({
-      slug: brandSlug,
-      isActive: true
-    });
-
-    if (brandDoc) {
-      basicQuery.push({
-        $match: {
-          'brand._id': { $eq: brandDoc._id }
-        }
+    // FIX: Only query Brand if provided
+    if (brand) {
+      const brandSlug = String(brand); // Explicit cast
+      const brandDoc = await Brand.findOne({
+        slug: brandSlug,
+        isActive: true
       });
+
+      if (brandDoc) {
+        basicQuery.push({
+          $match: {
+            'brand._id': { $eq: brandDoc._id }
+          }
+        });
+      }
     }
 
+    // Use safeSortOrder in pagination
     let products = null;
     const productsCount = await Product.aggregate(basicQuery);
     const count = productsCount.length;
@@ -157,14 +193,14 @@ router.get('/list', async (req, res) => {
 
     // paginate query
     const paginateQuery = [
-      { $sort: sortOrder },
+      { $sort: safeSortOrder }, // <--- USE THE SANITIZED VARIABLE
       { $skip: size * limit },
       { $limit: limit * 1 }
     ];
 
     if (userDoc) {
       const wishListQuery = getStoreProductsWishListQuery(userDoc.id).concat(
-        basicQuery
+          basicQuery
       );
       products = await Product.aggregate(wishListQuery.concat(paginateQuery));
     } else {
@@ -372,75 +408,74 @@ router.get(
   }
 );
 
-router.put(
-  '/:id',
-  auth,
-  role.check(ROLES.Admin, ROLES.Merchant),
-  async (req, res) => {
-    try {
-      const productId = req.params.id;
-      const update = req.body.product;
-      const query = { _id: productId };
-      const { sku, slug } = req.body.product;
+router.put('/:id', auth, role.check(ROLES.Admin, ROLES.Merchant), async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const update = req.body.product;
+    const query = { _id: productId };
+    const { sku, slug } = req.body.product;
 
-      const safeSlug = String(slug);
-      const safeSku = String(sku);
-
-      const foundProduct = await Product.findOne({
-        $or: [{ slug: safeSlug }, { sku: safeSku }]
-      });
-
-      if (foundProduct && foundProduct._id != productId) {
-        return res
-          .status(400)
-          .json({ error: 'Sku or slug is already in use.' });
-      }
-
-      await Product.findOneAndUpdate(query, update, {
-        new: true
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Product has been updated successfully!'
-      });
-    } catch (error) {
-      res.status(400).json({
-        error: 'Your request could not be processed. Please try again.'
-      });
+    // FIX: Validate ObjectId
+    if (!Mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ error: 'Invalid Product ID' });
     }
-  }
-);
+    // FIX: Sanitize ID for the query
+    const safeQuery = { _id: new Mongoose.Types.ObjectId(productId) };
 
-router.put(
-  '/:id/active',
-  auth,
-  role.check(ROLES.Admin, ROLES.Merchant),
-  async (req, res) => {
-    try {
-      const productId = req.params.id;
-      const update = req.body.product;
-      const query = { _id: productId };
+    // FIX: Sanitize Slug and SKU
+    const safeSlug = String(slug);
+    const safeSku = String(sku);
 
-      if (!Mongoose.Types.ObjectId.isValid(productId)) {
-        return res.status(400).json({ error: 'Invalid Product ID' });
-      }
+    const foundProduct = await Product.findOne({
+      $or: [{ slug: safeSlug }, { sku: safeSku }]
+    });
 
-      await Product.findOneAndUpdate(query, update, {
-        new: true
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Product has been updated successfully!'
-      });
-    } catch (error) {
-      res.status(400).json({
-        error: 'Your request could not be processed. Please try again.'
-      });
+    if (foundProduct && foundProduct._id.toString() !== productId) {
+      return res.status(400).json({ error: 'Sku or slug is already in use.' });
     }
+
+    await Product.findOneAndUpdate(safeQuery, update, {
+      new: true
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Product has been updated successfully!'
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: 'Your request could not be processed. Please try again.'
+    });
   }
-);
+});
+
+router.put('/:id/active', auth, role.check(ROLES.Admin, ROLES.Merchant), async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const update = req.body.product;
+
+    // FIX: Validate ID first
+    if (!Mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ error: 'Invalid Product ID' });
+    }
+
+    // FIX: Create safe query
+    const query = { _id: new Mongoose.Types.ObjectId(productId) };
+
+    await Product.findOneAndUpdate(query, update, {
+      new: true
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Product has been updated successfully!'
+    });
+  } catch (error) {
+    res.status(400).json({
+      error: 'Your request could not be processed. Please try again.'
+    });
+  }
+});
 
 router.delete(
   '/delete/:id',
