@@ -1,6 +1,6 @@
 const chalk = require("chalk");
 const mongoose = require("mongoose");
-require("dotenv").config({ path: __dirname + "/../.env" }); // <-- load .env explicitly
+require("dotenv").config({ path: "./server/.env" }); // <-- load .env explicitly
 
 const keys = require("../config/keys");
 const { database } = keys;
