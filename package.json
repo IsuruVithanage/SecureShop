@@ -1,7 +1,7 @@
 {
-  "name": "secureshop",
+  "name": "mern-ecommerce",
   "version": "1.0.0",
-  "description": "Secure MERN Ecommerce Platform",
+  "description": "MERN Ecommerce",
   "main": "server/index.js",
   "scripts": {
     "dev": "npm-run-all --parallel dev:*",
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/IsuruVithanage/SecureShop.git"
+    "url": "git+https://github.com/mohamedsamara/mern-ecommerce.git"
   },
   "keywords": [
     "node",
@@ -23,16 +23,14 @@
     "react",
     "redux",
     "redux-thunk",
-    "webpack",
-    "ecommerce",
-    "security"
+    "webpack"
   ],
-  "author": "Isuru Vithanage (https://github.com/IsuruVithanage)",
+  "author": "Mohamed Samara (https://github.com/mohamedsamara)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/IsuruVithanage/SecureShop/issues"
+    "url": "https://github.com/mohamedsamara/mern-ecommerce/issues"
   },
-  "homepage": "https://github.com/IsuruVithanage/SecureShop#readme",
+  "homepage": "https://github.com/mohamedsamara/mern-ecommerce#readme",
   "devDependencies": {
     "cross-env": "^5.2.1",
     "npm-run-all": "^4.1.5"
