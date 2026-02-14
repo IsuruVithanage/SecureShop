@@ -235,7 +235,9 @@ router.post(
         return res.status(400).json({ error: 'You must enter a price.' });
       }
 
-      const foundProduct = await Product.findOne({ sku });
+      const safeSku = String(sku);
+
+      const foundProduct = await Product.findOne({ sku: safeSku });
 
       if (foundProduct) {
         return res.status(400).json({ error: 'This sku is already in use.' });
@@ -328,6 +330,11 @@ router.get(
 
       let productDoc = null;
 
+      if (!Mongoose.Types.ObjectId.isValid(productId)) {
+        return res.status(404).json({ message: 'Product not found.' });
+      }
+      const safeProductId = new Mongoose.Types.ObjectId(productId);
+
       if (req.user.merchant) {
         const brands = await Brand.find({
           merchant: req.user.merchant
@@ -335,14 +342,14 @@ router.get(
 
         const brandId = brands[0]['_id'];
 
-        productDoc = await Product.findOne({ _id: productId })
+        productDoc = await Product.findOne({ _id: safeProductId })
           .populate({
             path: 'brand',
             select: 'name'
           })
           .where('brand', brandId);
       } else {
-        productDoc = await Product.findOne({ _id: productId }).populate({
+        productDoc = await Product.findOne({ _id: safeProductId }).populate({
           path: 'brand',
           select: 'name'
         });
@@ -376,8 +383,11 @@ router.put(
       const query = { _id: productId };
       const { sku, slug } = req.body.product;
 
+      const safeSlug = String(slug);
+      const safeSku = String(sku);
+
       const foundProduct = await Product.findOne({
-        $or: [{ slug }, { sku }]
+        $or: [{ slug: safeSlug }, { sku: safeSku }]
       });
 
       if (foundProduct && foundProduct._id != productId) {
@@ -412,6 +422,10 @@ router.put(
       const update = req.body.product;
       const query = { _id: productId };
 
+      if (!Mongoose.Types.ObjectId.isValid(productId)) {
+        return res.status(400).json({ error: 'Invalid Product ID' });
+      }
+
       await Product.findOneAndUpdate(query, update, {
         new: true
       });
@@ -434,7 +448,13 @@ router.delete(
   role.check(ROLES.Admin, ROLES.Merchant),
   async (req, res) => {
     try {
-      const product = await Product.deleteOne({ _id: req.params.id });
+      const productId = req.params.id;
+
+      if (!Mongoose.Types.ObjectId.isValid(productId)) {
+        return res.status(400).json({ error: 'Invalid Product ID' });
+      }
+
+      const product = await Product.deleteOne({ _id: new Mongoose.Types.ObjectId(productId) });
 
       res.status(200).json({
         success: true,
