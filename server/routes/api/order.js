@@ -202,14 +202,20 @@ router.get('/:orderId', auth, async (req, res) => {
   try {
     const orderId = req.params.orderId;
 
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-      return res.status(400).json({ error: 'Invalid Order ID format' });
-    }
-
     let orderDoc = null;
 
+    if (!Mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        error: 'Invalid Order ID'
+      });
+    }
+
+    const safeId = new Mongoose.Types.ObjectId(orderId);
+
     if (req.user.role === ROLES.Admin) {
-      orderDoc = await Order.findOne({ _id: orderId }).populate({
+      orderDoc = await Order.findOne({
+        _id: safeId
+      }).populate({
         path: 'cart',
         populate: {
           path: 'products.product',
@@ -220,7 +226,10 @@ router.get('/:orderId', auth, async (req, res) => {
       });
     } else {
       const user = req.user._id;
-      orderDoc = await Order.findOne({ _id: orderId, user }).populate({
+      orderDoc = await Order.findOne({
+        _id: safeId,
+        user
+      }).populate({
         path: 'cart',
         populate: {
           path: 'products.product',
