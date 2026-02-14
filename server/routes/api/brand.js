@@ -198,6 +198,10 @@ router.put(
       const update = req.body.brand;
       const query = { _id: brandId };
 
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
+
       // disable brand(brandId) products
       if (!update.isActive) {
         const products = await Product.find({ brand: brandId });
