@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const escapeStringRegexp = require('escape-string-regexp');
 
@@ -225,15 +224,12 @@ router.post('/signup/:token', async (req, res) => {
       resetPasswordToken: req.params.token.toString()
     });
 
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-
     const query = { _id: userDoc._id };
     const update = {
       email,
       firstName,
       lastName,
-      password: hash,
+      password: password,
       resetPasswordToken: undefined
     };
 
