@@ -35,7 +35,7 @@ router.post('/add', async (req, res) => {
         .json({ error: 'You must enter a phone number and an email address.' });
     }
 
-    const existingMerchant = await Merchant.findOne({ email });
+    const existingMerchant = await Merchant.findOne({ email: email.toString() });
 
     if (existingMerchant) {
       return res
@@ -125,7 +125,7 @@ router.put('/:id/active', auth, async (req, res) => {
   try {
     const merchantId = req.params.id;
     const update = req.body.merchant;
-    const query = { _id: merchantId };
+    const query = { _id: merchantId.toString() };
 
     const merchantDoc = await Merchant.findOneAndUpdate(query, update, {
       new: true
@@ -150,7 +150,7 @@ router.put('/:id/active', auth, async (req, res) => {
 router.put('/approve/:id', auth, async (req, res) => {
   try {
     const merchantId = req.params.id;
-    const query = { _id: merchantId };
+    const query = { _id: merchantId.toString() };
     const update = {
       status: MERCHANT_STATUS.Approved,
       isActive: true
@@ -182,7 +182,7 @@ router.put('/reject/:id', auth, async (req, res) => {
   try {
     const merchantId = req.params.id;
 
-    const query = { _id: merchantId };
+    const query = { _id: merchantId.toString() };
     const update = {
       status: MERCHANT_STATUS.Rejected
     };
@@ -220,7 +220,7 @@ router.post('/signup/:token', async (req, res) => {
     }
 
     const userDoc = await User.findOne({
-      email,
+      email: email.toString(),
       resetPasswordToken: req.params.token
     });
 
@@ -241,7 +241,7 @@ router.post('/signup/:token', async (req, res) => {
     });
 
     const merchantDoc = await Merchant.findOne({
-      email
+      email: email.toString(),
     });
 
     await createMerchantBrand(merchantDoc);
@@ -264,7 +264,7 @@ router.delete(
     try {
       const merchantId = req.params.id;
       await deactivateBrand(merchantId);
-      const merchant = await Merchant.deleteOne({ _id: merchantId });
+      const merchant = await Merchant.deleteOne({ _id: merchantId.toString() });
 
       res.status(200).json({
         success: true,
@@ -280,13 +280,13 @@ router.delete(
 );
 
 const deactivateBrand = async merchantId => {
-  const merchantDoc = await Merchant.findOne({ _id: merchantId }).populate(
+  const merchantDoc = await Merchant.findOne({ _id: merchantId.toString() }).populate(
     'brand',
     '_id'
   );
   if (!merchantDoc || !merchantDoc.brand) return;
   const brandId = merchantDoc.brand._id;
-  const query = { _id: brandId };
+  const query = { _id: brandId.toString() };
   const update = {
     isActive: false
   };
