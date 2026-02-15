@@ -221,8 +221,8 @@ router.post('/signup/:token', async (req, res) => {
     }
 
     const userDoc = await User.findOne({
-      email: { $eq: email.toString() },
-      resetPasswordToken: req.params.token
+      email: email.toString(),
+      resetPasswordToken: req.params.token.toString()
     });
 
     const salt = await bcrypt.genSalt(10);
