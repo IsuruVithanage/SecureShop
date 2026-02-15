@@ -98,7 +98,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    const brandDoc = await Brand.findOne({ _id: brandId }).populate(
+    const brandDoc = await Brand.findOne({ _id: brandId.toString() }).populate(
       'merchant',
       '_id'
     );
@@ -157,7 +157,7 @@ router.put(
     try {
       const brandId = req.params.id;
       const update = req.body.brand;
-      const query = { _id: brandId };
+      const query = { _id: brandId.toString() };
       const { slug } = req.body.brand;
 
       if (!mongoose.Types.ObjectId.isValid(brandId)) {
@@ -196,7 +196,7 @@ router.put(
     try {
       const brandId = req.params.id;
       const update = req.body.brand;
-      const query = { _id: brandId };
+      const query = { _id: brandId.toString() };
 
       if (!mongoose.Types.ObjectId.isValid(brandId)) {
         return res.status(400).json({ error: 'Invalid Brand ID.' });
@@ -237,7 +237,7 @@ router.delete(
       }
 
       await deactivateMerchant(brandId);
-      const brand = await Brand.deleteOne({ _id: brandId });
+      const brand = await Brand.deleteOne({ _id: brandId.toString() });
 
       res.status(200).json({
         success: true,
@@ -253,7 +253,7 @@ router.delete(
 );
 
 const deactivateMerchant = async brandId => {
-  const brandDoc = await Brand.findOne({ _id: brandId }).populate(
+  const brandDoc = await Brand.findOne({ _id: brandId.toString() }).populate(
     'merchant',
     '_id'
   );
