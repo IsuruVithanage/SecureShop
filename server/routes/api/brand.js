@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 
 // Bring in Models & Utils
@@ -91,7 +92,13 @@ router.get('/:id', async (req, res) => {
   try {
     const brandId = req.params.id;
 
-    const brandDoc = await Brand.findOne({ _id: brandId }).populate(
+    if (!mongoose.Types.ObjectId.isValid(brandId)) {
+      return res.status(400).json({
+        message: 'Invalid Brand ID.'
+      });
+    }
+
+    const brandDoc = await Brand.findOne({ _id: brandId.toString() }).populate(
       'merchant',
       '_id'
     );
@@ -150,14 +157,18 @@ router.put(
     try {
       const brandId = req.params.id;
       const update = req.body.brand;
-      const query = { _id: brandId };
+      const query = { _id: brandId.toString() };
       const { slug } = req.body.brand;
+
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
 
       const foundBrand = await Brand.findOne({
         $or: [{ slug }]
       });
 
-      if (foundBrand && foundBrand._id != brandId) {
+      if (foundBrand && foundBrand._id.toString() !== brandId) {
         return res.status(400).json({ error: 'Slug is already in use.' });
       }
 
@@ -185,11 +196,15 @@ router.put(
     try {
       const brandId = req.params.id;
       const update = req.body.brand;
-      const query = { _id: brandId };
+      const query = { _id: brandId.toString() };
+
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
 
       // disable brand(brandId) products
       if (!update.isActive) {
-        const products = await Product.find({ brand: brandId });
+        const products = await Product.find({ brand: brandId.toString() });
         store.disableProducts(products);
       }
 
@@ -216,8 +231,13 @@ router.delete(
   async (req, res) => {
     try {
       const brandId = req.params.id;
+
+      if (!mongoose.Types.ObjectId.isValid(brandId)) {
+        return res.status(400).json({ error: 'Invalid Brand ID.' });
+      }
+
       await deactivateMerchant(brandId);
-      const brand = await Brand.deleteOne({ _id: brandId });
+      const brand = await Brand.deleteOne({ _id: brandId.toString() });
 
       res.status(200).json({
         success: true,
@@ -233,7 +253,7 @@ router.delete(
 );
 
 const deactivateMerchant = async brandId => {
-  const brandDoc = await Brand.findOne({ _id: brandId }).populate(
+  const brandDoc = await Brand.findOne({ _id: brandId.toString() }).populate(
     'merchant',
     '_id'
   );

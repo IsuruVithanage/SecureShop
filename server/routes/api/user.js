@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const escapeStringRegexp = require('escape-string-regexp');
 
 // Bring in Models & Helpers
 const User = require('../../models/user');
@@ -7,28 +8,22 @@ const auth = require('../../middleware/auth');
 const role = require('../../middleware/role');
 const { ROLES } = require('../../constants');
 
-// Add this helper at the top if not already present
-function escapeRegex(text) {
-  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-}
-
 // search users api
 router.get('/search', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const { search } = req.query;
-    const safeSearch = escapeRegex(search);
 
-    const regex = new RegExp(safeSearch, 'i');
+    const regex = new RegExp(escapeStringRegexp(search), 'i');
 
     const users = await User.find(
-        {
-          $or: [
-            { firstName: { $regex: regex } },
-            { lastName: { $regex: regex } },
-            { email: { $regex: regex } }
-          ]
-        },
-        { password: 0, _id: 0 }
+      {
+        $or: [
+          { firstName: { $regex: regex } },
+          { lastName: { $regex: regex } },
+          { email: { $regex: regex } }
+        ]
+      },
+      { password: 0, _id: 0 }
     ).populate('merchant', 'name');
 
     res.status(200).json({

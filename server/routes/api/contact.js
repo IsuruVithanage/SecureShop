@@ -27,7 +27,7 @@ router.post('/add', async (req, res) => {
       return res.status(400).json({ error: 'You must enter a message.' });
     }
 
-    const existingContact = await Contact.findOne({ email });
+    const existingContact = await Contact.findOne({ email: email.toString() });
 
     if (existingContact) {
       return res

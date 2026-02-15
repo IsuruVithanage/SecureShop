@@ -20,15 +20,9 @@ const { ROLES } = require('../../constants');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-function escapeRegex(text) {
-  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-}
-
 // fetch product slug api
 router.get('/item/:slug', async (req, res) => {
   try {
-    // 1. SANITIZE: Explicitly cast to String
-    // This tells SonarQube that 'safeSlug' is definitely a string, not a malicious object.
     const safeSlug = String(req.params.slug);
 
     if (!safeSlug) {
@@ -61,15 +55,8 @@ router.get('/item/:slug', async (req, res) => {
 router.get('/list/search/:name', async (req, res) => {
   try {
     const name = req.params.name;
+    const regex = new RegExp(name, 'is');
 
-    // 1. SANITIZE: Use the helper function you created
-    // This prevents ReDoS (S2631) by escaping special characters like * or +
-    const safeName = escapeRegex(name);
-
-    // 2. CREATE REGEX: Use the sanitized string, NOT the raw 'name'
-    const regex = new RegExp(safeName, 'is');
-
-    // 3. QUERY: Use the safe regex in MongoDB
     const productDoc = await Product.find(
         { name: { $regex: regex }, isActive: true },
         {
