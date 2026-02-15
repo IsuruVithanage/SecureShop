@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const escapeStringRegexp = require('escape-string-regexp');
 
 // Bring in Models & Helpers
 const { MERCHANT_STATUS, ROLES } = require('../../constants');
@@ -71,7 +72,7 @@ router.get('/search', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const { search } = req.query;
 
-    const regex = new RegExp(search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
+    const regex = new RegExp(escapeStringRegexp(search), 'i');
 
     const merchants = await Merchant.find({
       $or: [
