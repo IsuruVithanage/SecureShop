@@ -204,7 +204,7 @@ router.put(
 
       // disable brand(brandId) products
       if (!update.isActive) {
-        const products = await Product.find({ brand: brandId });
+        const products = await Product.find({ brand: brandId.toString() });
         store.disableProducts(products);
       }
 
