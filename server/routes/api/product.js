@@ -58,7 +58,7 @@ router.get('/item/:slug', async (req, res) => {
 router.get('/list/search/:name', async (req, res) => {
   try {
     const name = req.params.name;
-    const safeName = escapeStringRegexp(name);
+    const safeName = escapeStringRegexp(name.toString());
     const regex = new RegExp(safeName, 'is');
 
     const productDoc = await Product.find(
