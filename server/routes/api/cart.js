@@ -69,7 +69,7 @@ router.post('/add/:cartId', auth, async (req, res) => {
 
     const query = { _id: cartId };
 
-    await Cart.updateOne(query, { $push: { products: product } }).exec();
+    await Cart.updateOne(query, { $push: { products: product.toString() } }).exec();
 
     res.status(200).json({
       success: true
