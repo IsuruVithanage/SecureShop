@@ -220,7 +220,7 @@ router.post('/signup/:token', async (req, res) => {
     }
 
     const userDoc = await User.findOne({
-      email: email.toString(),
+      email: { $eq: email.toString() },
       resetPasswordToken: req.params.token
     });
 
