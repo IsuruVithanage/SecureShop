@@ -44,7 +44,7 @@ router.delete('/delete/:cartId', auth, async (req, res) => {
       });
     }
 
-    await Cart.deleteOne({ _id: cartId });
+    await Cart.deleteOne({ _id: cartId.toString() });
 
     res.status(200).json({
       success: true
@@ -95,8 +95,8 @@ router.delete('/delete/:cartId/:productId', auth, async (req, res) => {
       });
     }
 
-    const query = { _id: cartId };
-    const update = { $pull: { products: { product: productId } } };
+    const query = { _id: cartId.toString() };
+    const update = { $pull: { products: { product: productId.toString() } } };
 
     const result = await Cart.updateOne(query, update).exec();
 
