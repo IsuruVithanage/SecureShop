@@ -54,7 +54,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    const addressDoc = await Address.findOne({ _id: addressId });
+    const addressDoc = await Address.findOne({ _id: addressId.toString() });
 
     if (!addressDoc) {
       return res.status(404).json({
@@ -76,7 +76,7 @@ router.put('/:id', async (req, res) => {
   try {
     const addressId = req.params.id;
     const update = req.body;
-    const query = { _id: addressId };
+    const query = { _id: addressId.toString() };
 
     await Address.findOneAndUpdate(query, update, {
       new: true
@@ -95,7 +95,7 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/delete/:id', async (req, res) => {
   try {
-    const address = await Address.deleteOne({ _id: req.params.id });
+    const address = await Address.deleteOne({ _id: req.params.id.toString() });
 
     res.status(200).json({
       success: true,
