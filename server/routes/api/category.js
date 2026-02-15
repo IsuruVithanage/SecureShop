@@ -82,7 +82,7 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    const categoryDoc = await Category.findOne({ _id: categoryId }).populate({
+    const categoryDoc = await Category.findOne({ _id: categoryId.toString() }).populate({
       path: 'products',
       select: 'name'
     });
@@ -107,14 +107,14 @@ router.put('/:id', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const categoryId = req.params.id;
     const update = req.body.category;
-    const query = { _id: categoryId };
+    const query = { _id: categoryId.toString() };
     const { slug } = req.body.category;
 
     const foundCategory = await Category.findOne({
       $or: [{ slug }]
     });
 
-    if (foundCategory && foundCategory._id != categoryId) {
+    if (foundCategory && foundCategory._id.toString() != categoryId) {
       return res.status(400).json({ error: 'Slug is already in use.' });
     }
 
@@ -137,7 +137,7 @@ router.put('/:id/active', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const categoryId = req.params.id;
     const update = req.body.category;
-    const query = { _id: categoryId };
+    const query = { _id: categoryId.toString() };
 
     // disable category(categoryId) products
     if (!update.isActive) {
@@ -170,7 +170,7 @@ router.delete(
   role.check(ROLES.Admin),
   async (req, res) => {
     try {
-      const product = await Category.deleteOne({ _id: req.params.id });
+      const product = await Category.deleteOne({ _id: req.params.id.toString() });
 
       res.status(200).json({
         success: true,
