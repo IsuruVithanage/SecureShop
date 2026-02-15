@@ -34,7 +34,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toString() });
     if (!user) {
       return res
         .status(400)
@@ -106,7 +106,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toString() });
 
     if (existingUser) {
       return res
@@ -182,7 +182,7 @@ router.post('/forgot', async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format.' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toString() });
 
     if (!existingUser) {
       return res
@@ -230,7 +230,7 @@ router.post('/reset/:token', async (req, res) => {
     }
 
     const resetUser = await User.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: token.toString(),
       resetPasswordExpires: { $gt: Date.now() }
     });
 
@@ -277,7 +277,7 @@ router.post('/reset', auth, async (req, res) => {
       return res.status(400).json({ error: 'You must enter a password.' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: email.toString() });
     if (!existingUser) {
       return res
         .status(400)
