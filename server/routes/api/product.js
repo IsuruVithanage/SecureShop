@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const Mongoose = require('mongoose');
-const escapeStringRegexp = require('escape-string-regexp');
 
 // Bring in Models & Utils
 const Product = require('../../models/product');
@@ -24,8 +23,6 @@ const upload = multer({ storage });
 // fetch product slug api
 router.get('/item/:slug', async (req, res) => {
   try {
-    // 1. SANITIZE: Explicitly cast to String
-    // This tells SonarQube that 'safeSlug' is definitely a string, not a malicious object.
     const safeSlug = String(req.params.slug);
 
     if (!safeSlug) {
@@ -58,8 +55,7 @@ router.get('/item/:slug', async (req, res) => {
 router.get('/list/search/:name', async (req, res) => {
   try {
     const name = req.params.name;
-    const safeName = escapeStringRegexp(name.toString());
-    const regex = new RegExp(safeName, 'is');
+    const regex = new RegExp(name, 'is');
 
     const productDoc = await Product.find(
         { name: { $regex: regex }, isActive: true },
