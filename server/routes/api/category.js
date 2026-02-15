@@ -76,7 +76,13 @@ router.get('/:id', async (req, res) => {
   try {
     const categoryId = req.params.id;
 
-    const categoryDoc = await Category.findOne({ _id: categoryId }).populate({
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      return res.status(400).json({
+        error: 'Invalid Category ID format.'
+      });
+    }
+
+    const categoryDoc = await Category.findOne({ _id: categoryId.toString() }).populate({
       path: 'products',
       select: 'name'
     });
@@ -101,14 +107,14 @@ router.put('/:id', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const categoryId = req.params.id;
     const update = req.body.category;
-    const query = { _id: categoryId };
+    const query = { _id: categoryId.toString() };
     const { slug } = req.body.category;
 
     const foundCategory = await Category.findOne({
       $or: [{ slug }]
     });
 
-    if (foundCategory && foundCategory._id != categoryId) {
+    if (foundCategory && foundCategory._id.toString() != categoryId) {
       return res.status(400).json({ error: 'Slug is already in use.' });
     }
 
@@ -131,12 +137,12 @@ router.put('/:id/active', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const categoryId = req.params.id;
     const update = req.body.category;
-    const query = { _id: categoryId };
+    const query = { _id: categoryId.toString() };
 
     // disable category(categoryId) products
     if (!update.isActive) {
       const categoryDoc = await Category.findOne(
-        { _id: categoryId, isActive: true },
+        { _id: categoryId.toString(), isActive: true },
         'products -_id'
       ).populate('products');
 
@@ -164,7 +170,7 @@ router.delete(
   role.check(ROLES.Admin),
   async (req, res) => {
     try {
-      const product = await Category.deleteOne({ _id: req.params.id });
+      const product = await Category.deleteOne({ _id: req.params.id.toString() });
 
       res.status(200).json({
         success: true,

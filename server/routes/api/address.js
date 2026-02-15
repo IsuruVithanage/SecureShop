@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 
 // Bring in Models & Helpers
 const Address = require('../../models/address');
@@ -47,10 +48,16 @@ router.get('/:id', async (req, res) => {
   try {
     const addressId = req.params.id;
 
-    const addressDoc = await Address.findOne({ _id: addressId });
+    if (!mongoose.Types.ObjectId.isValid(addressId)) {
+      return res.status(400).json({
+        message: 'Invalid Address ID format.'
+      });
+    }
+
+    const addressDoc = await Address.findOne({ _id: addressId.toString() });
 
     if (!addressDoc) {
-      res.status(404).json({
+      return res.status(404).json({
         message: `Cannot find Address with the id: ${addressId}.`
       });
     }
@@ -69,7 +76,7 @@ router.put('/:id', async (req, res) => {
   try {
     const addressId = req.params.id;
     const update = req.body;
-    const query = { _id: addressId };
+    const query = { _id: addressId.toString() };
 
     await Address.findOneAndUpdate(query, update, {
       new: true
@@ -88,7 +95,7 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/delete/:id', async (req, res) => {
   try {
-    const address = await Address.deleteOne({ _id: req.params.id });
+    const address = await Address.deleteOne({ _id: req.params.id.toString() });
 
     res.status(200).json({
       success: true,

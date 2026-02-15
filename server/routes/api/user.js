@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const escapeStringRegexp = require('escape-string-regexp');
 
 // Bring in Models & Helpers
 const User = require('../../models/user');
@@ -12,7 +13,7 @@ router.get('/search', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const { search } = req.query;
 
-    const regex = new RegExp(search, 'i');
+    const regex = new RegExp(escapeStringRegexp(search), 'i');
 
     const users = await User.find(
       {
