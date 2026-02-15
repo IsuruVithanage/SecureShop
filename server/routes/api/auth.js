@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const passport = require('passport');
@@ -47,7 +46,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = password === user.password;
 
     if (!isMatch) {
       return res.status(400).json({
@@ -130,10 +129,6 @@ router.post('/register', async (req, res) => {
       lastName
     });
 
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(user.password, salt);
-
-    user.password = hash;
     const registeredUser = await user.save();
 
     const payload = {
@@ -241,10 +236,7 @@ router.post('/reset/:token', async (req, res) => {
       });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-
-    resetUser.password = hash;
+    resetUser.password = password;
     resetUser.resetPasswordToken = undefined;
     resetUser.resetPasswordExpires = undefined;
 
@@ -284,7 +276,7 @@ router.post('/reset', auth, async (req, res) => {
         .json({ error: 'That email address is already in use.' });
     }
 
-    const isMatch = await bcrypt.compare(password, existingUser.password);
+    const isMatch = password === existingUser.password;
 
     if (!isMatch) {
       return res
@@ -292,9 +284,7 @@ router.post('/reset', auth, async (req, res) => {
         .json({ error: 'Please enter your correct old password.' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(confirmPassword, salt);
-    existingUser.password = hash;
+    existingUser.password = confirmPassword;
     existingUser.save();
 
     await mailgun.sendEmail(existingUser.email, 'reset-confirmation');
