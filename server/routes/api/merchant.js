@@ -71,7 +71,7 @@ router.get('/search', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const { search } = req.query;
 
-    const regex = new RegExp(search, 'i');
+    const regex = new RegExp(search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
 
     const merchants = await Merchant.find({
       $or: [
@@ -220,7 +220,7 @@ router.post('/signup/:token', async (req, res) => {
     }
 
     const userDoc = await User.findOne({
-      email: email.toString(),
+      email: { $eq: email.toString() },
       resetPasswordToken: req.params.token
     });
 

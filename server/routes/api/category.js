@@ -142,7 +142,7 @@ router.put('/:id/active', auth, role.check(ROLES.Admin), async (req, res) => {
     // disable category(categoryId) products
     if (!update.isActive) {
       const categoryDoc = await Category.findOne(
-        { _id: categoryId, isActive: true },
+        { _id: categoryId.toString(), isActive: true },
         'products -_id'
       ).populate('products');
 
