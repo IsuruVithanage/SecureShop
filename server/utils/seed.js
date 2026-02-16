@@ -1,6 +1,7 @@
 const chalk = require('chalk');
 const mongoose = require('mongoose');
 const { faker } = require('@faker-js/faker');
+const bcrypt = require('bcryptjs'); // For hashing passwords
 
 const setupDB = require('./db');
 const { ROLES } = require('../constants');
@@ -34,6 +35,10 @@ const seedDB = async () => {
         lastName: 'admin',
         role: ROLES.Admin
       });
+
+      const salt = await bcrypt.genSalt(10);
+      const hash = await bcrypt.hash(user.password, salt);
+      user.password = hash;
 
       await user.save();
       console.log(`${chalk.green('✓')} ${chalk.green('Admin user seeded.')}`);
