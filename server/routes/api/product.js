@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require("multer");
 const Mongoose = require("mongoose");
 const escapeStringRegexp = require("escape-string-regexp");
+
 const Product = require("../../models/product");
 const Brand = require("../../models/brand");
 const Category = require("../../models/category");
@@ -10,6 +11,7 @@ const auth = require("../../middleware/auth");
 const role = require("../../middleware/role");
 const checkAuth = require("../../utils/auth");
 const { s3Upload } = require("../../utils/storage");
+const { validateImageFile } = require("../../utils/fileValidator");
 const {
   getStoreProductsQuery,
   getStoreProductsWishListQuery,
@@ -17,7 +19,23 @@ const {
 const { ROLES } = require("../../constants");
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+
+// Multer configuration with file validation
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 
+  },
+  fileFilter: (req, file, cb) => {
+
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only image files are allowed.'), false);
+    }
+  }
+});
 
 // fetch product slug api
 router.get("/item/:slug", async (req, res) => {
@@ -256,6 +274,16 @@ router.post(
 
       if (foundProduct) {
         return res.status(400).json({ error: "This sku is already in use." });
+      }
+
+      // Validate uploaded image file
+      if (!image) {
+        return res.status(400).json({ error: "Product image is required." });
+      }
+
+      const validation = validateImageFile(image);
+      if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
       }
 
       const { imageUrl, imageKey } = await s3Upload(image);
