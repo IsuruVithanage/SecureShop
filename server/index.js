@@ -48,38 +48,44 @@ app.use(
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
+
                 scriptSrc: [
                     "'self'",
-                    "https://js.stripe.com",
-                    "'unsafe-eval'"
+                    "https://js.stripe.com"
                 ],
+
                 styleSrc: [
                     "'self'",
-                    "'unsafe-inline'",
                     "https://fonts.googleapis.com"
                 ],
+
                 fontSrc: [
                     "'self'",
-                    "data:",
                     "https://fonts.gstatic.com"
                 ],
+
                 imgSrc: [
                     "'self'",
                     "data:",
                     "https://res.cloudinary.com"
                 ],
+
                 connectSrc: [
                     "'self'",
                     "http://localhost:3000",
                     "http://localhost:8080"
                 ],
+
+                /** 🔒 REQUIRED BY ZAP **/
+                formAction: ["'self'"],            // FIX 1
+                frameAncestors: ["'none'"],         // FIX 2
+
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
-                frameAncestors: ["'none'"],
+
                 upgradeInsecureRequests: null,
             },
         },
-        // Fixes resource loading issues across ports
         crossOriginResourcePolicy: { policy: "cross-origin" },
     })
 );
