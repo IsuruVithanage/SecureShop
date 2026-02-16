@@ -13,14 +13,33 @@ const { ROLES, CART_ITEM_STATUS } = require('../../constants');
 
 router.post('/add', auth, async (req, res) => {
   try {
-    const cart = req.body.cartId;
-    const total = req.body.total;
-    const user = req.user._id;
+    const cartId = req.body.cartId.toString();
+    const user = req.user._id.toString();
+
+    const sourceCart = await Cart.findById(cartId).populate('products.product');
+
+    if (!sourceCart) {
+      return res.status(400).json({ error: 'Cart not found.' });
+    }
+
+    let serverCalculatedTotal = 0;
+
+    sourceCart.products.forEach(item => {
+      if (item.product) {
+        if (item.product.price < 0) {
+          throw new Error(`Invalid price detected for ${item.product.name}`);
+        }
+        if (item.quantity <= 0) {
+          throw new Error(`Invalid quantity detected for ${item.product.name}`);
+        }
+        serverCalculatedTotal += item.product.price * item.quantity;
+      }
+    });
 
     const order = new Order({
-      cart,
+      cart: cartId,
       user,
-      total
+      total: serverCalculatedTotal
     });
 
     const orderDoc = await order.save();
@@ -49,7 +68,7 @@ router.post('/add', auth, async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
-      error: 'Your request could not be processed. Please try again.'
+      error: error.message || 'Your request could not be processed. Please try again.'
     });
   }
 });
@@ -69,7 +88,7 @@ router.get('/search', auth, async (req, res) => {
 
     if (req.user.role === ROLES.Admin) {
       ordersDoc = await Order.find({
-        _id: Mongoose.Types.ObjectId(search)
+        _id: new Mongoose.Types.ObjectId(search)
       }).populate({
         path: 'cart',
         populate: {
@@ -82,7 +101,7 @@ router.get('/search', auth, async (req, res) => {
     } else {
       const user = req.user._id;
       ordersDoc = await Order.find({
-        _id: Mongoose.Types.ObjectId(search),
+        _id: new Mongoose.Types.ObjectId(search),
         user
       }).populate({
         path: 'cart',
@@ -127,6 +146,10 @@ router.get('/search', auth, async (req, res) => {
 // fetch orders api
 router.get('/', auth, async (req, res) => {
   try {
+    if (req.user.role !== ROLES.Admin) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
     const { page = 1, limit = 10 } = req.query;
     const ordersDoc = await Order.find()
       .sort('-created')
@@ -269,20 +292,22 @@ router.get('/:orderId', auth, async (req, res) => {
 
 router.delete('/cancel/:orderId', auth, async (req, res) => {
   try {
-    const orderId = req.params.orderId;
+    const orderId = req.params.orderId.toString();
+    const user = req.user._id.toString();
 
-    // 1. VALIDATE
     if (!Mongoose.Types.ObjectId.isValid(orderId)) {
       return res.status(400).json({ error: 'Invalid Order ID' });
     }
 
-    // 2. SANITIZE
     const safeId = new Mongoose.Types.ObjectId(orderId);
+    const query = { _id: safeId };
 
-    // 3. USE SAFE ID
-    const order = await Order.findOne({ _id: safeId });
+    if (req.user.role !== ROLES.Admin) {
+      query.user = user;
+    }
 
-    // Add null check to prevent crash if order not found
+    const order = await Order.findOne(query);
+
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
@@ -294,7 +319,6 @@ router.delete('/cancel/:orderId', auth, async (req, res) => {
       await Cart.deleteOne({ _id: order.cart });
     }
 
-    // Use safeId here as well
     await Order.deleteOne({ _id: safeId });
 
     res.status(200).json({
@@ -313,22 +337,39 @@ router.put('/status/item/:itemId', auth, async (req, res) => {
     const orderId = req.body.orderId;
     const cartId = req.body.cartId;
     const status = req.body.status || CART_ITEM_STATUS.Cancelled;
+    const user = req.user._id;
 
-    // 1. VALIDATE & SANITIZE: itemId (The main blocker)
     if (!Mongoose.Types.ObjectId.isValid(itemId)) {
       return res.status(400).json({ error: 'Invalid Item ID' });
     }
     const safeItemId = new Mongoose.Types.ObjectId(itemId);
 
-    // 2. USE SAFE ID in the query
-    // This fixes the specific SonarQube error on line 317
-    const foundCart = await Cart.findOne({ 'products._id': safeItemId });
+    const foundCart = await Cart.findOne({ 'products._id': safeItemId.toString() });
 
     if (!foundCart) {
       return res.status(404).json({ error: 'Cart not found' });
     }
 
-    // Find the product in the array (convert to string for safe comparison)
+    if (orderId) {
+      if (!Mongoose.Types.ObjectId.isValid(orderId)) {
+        return res.status(400).json({ error: 'Invalid Order ID' });
+      }
+
+      const safeOrderId = new Mongoose.Types.ObjectId(orderId);
+
+      const query = { _id: safeOrderId };
+
+      if (req.user.role !== ROLES.Admin) {
+        query.user = user;
+      }
+
+      const existingOrder = await Order.findOne(query);
+
+      if (!existingOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+    }
+
     const foundCartProduct = foundCart.products.find(p => p._id.toString() === safeItemId.toString());
 
     if (!foundCartProduct) {
@@ -336,32 +377,28 @@ router.put('/status/item/:itemId', auth, async (req, res) => {
     }
 
     await Cart.updateOne(
-        { 'products._id': safeItemId },
-        {
-          'products.$.status': status
-        }
+      { 'products._id': safeItemId },
+      { 'products.$.status': status }
     );
 
     if (status === CART_ITEM_STATUS.Cancelled) {
       await Product.updateOne(
-          { _id: foundCartProduct.product },
-          { $inc: { quantity: foundCartProduct.quantity } }
+        { _id: foundCartProduct.product },
+        { $inc: { quantity: foundCartProduct.quantity } }
       );
 
-      // Validate other IDs before using them in deleteOne (Best Practice)
       if (cartId && Mongoose.Types.ObjectId.isValid(cartId)) {
         const safeCartId = new Mongoose.Types.ObjectId(cartId);
         const cart = await Cart.findOne({ _id: safeCartId });
 
         if (cart) {
           const items = cart.products.filter(
-              item => item.status === CART_ITEM_STATUS.Cancelled
+            item => item.status === CART_ITEM_STATUS.Cancelled
           );
 
-          // All items are cancelled => Cancel order
+          // If ALL items are cancelled, delete the entire Order
           if (cart.products.length === items.length) {
-            // Secure the orderId deletion as well
-            if (orderId && Mongoose.Types.ObjectId.isValid(orderId)) {
+            if (orderId) {
               await Order.deleteOne({ _id: new Mongoose.Types.ObjectId(orderId) });
             }
             await Cart.deleteOne({ _id: safeCartId });
@@ -369,9 +406,7 @@ router.put('/status/item/:itemId', auth, async (req, res) => {
             return res.status(200).json({
               success: true,
               orderCancelled: true,
-              message: `${
-                  req.user.role === ROLES.Admin ? 'Order' : 'Your order'
-              } has been cancelled successfully`
+              message: `${req.user.role === ROLES.Admin ? 'Order' : 'Your order'} has been cancelled successfully`
             });
           }
         }
