@@ -13,28 +13,18 @@ const { ROLES, CART_ITEM_STATUS } = require('../../constants');
 
 router.post('/add', auth, async (req, res) => {
   try {
+    const cart = req.body.cartId;
+    const total = req.body.total;
     const user = req.user._id;
-    const { cartId } = req.body;
-
-    const cart = await Cart.findOne({ _id: cartId }).populate('products.product');
-
-    if (!cart) {
-      return res.status(400).json({ error: 'Cart not found' });
-    }
-
-    // 2. SECURITY FIX: Re-calculate the total on the server side
-    let serverCalculatedTotal = 0;
-    cart.products.forEach(item => {
-      serverCalculatedTotal += item.product.price * item.quantity;
-    });
 
     const order = new Order({
       cart,
       user,
-      total: serverCalculatedTotal // <--- FIX 2: Use the SAFE calculated value
+      total
     });
 
     const orderDoc = await order.save();
+
     const cartDoc = await Cart.findById(orderDoc.cart._id).populate({
       path: 'products.product',
       populate: {
@@ -55,7 +45,7 @@ router.post('/add', auth, async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Your order has been placed successfully!`,
-      order: orderDoc
+      order: { _id: orderDoc._id }
     });
   } catch (error) {
     res.status(400).json({
