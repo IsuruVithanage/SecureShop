@@ -1,4 +1,5 @@
 const AWS = require('aws-sdk');
+const { generateSecureFilename } = require('./fileValidator');
 
 const keys = require('../config/keys');
 
@@ -18,9 +19,12 @@ exports.s3Upload = async image => {
         region: keys.aws.region
       });
 
+      // Generate secure random filename
+      const secureFilename = generateSecureFilename(image.originalname);
+
       const params = {
         Bucket: keys.aws.bucketName,
-        Key: image.originalname,
+        Key: secureFilename,
         Body: image.buffer,
         ContentType: image.mimetype
       };
