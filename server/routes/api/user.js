@@ -88,18 +88,10 @@ router.get('/me', auth, async (req, res) => {
 router.put('/', auth, async (req, res) => {
   try {
     const user = req.user._id;
+    const query = { _id: user.toString() };
 
-    // OLD (Vulnerable):
-    // const update = req.body.profile;
-
-    // NEW (Secure):
     const { firstName, lastName, phoneNumber } = req.body.profile;
     const update = { firstName, lastName, phoneNumber }; // Only allow these fields
-    await User.findOneAndUpdate(query, update, ...);
-
-    // If you want to allow password changes, handle them separately with hashing!
-    const query = { _id: user };
-
     const userDoc = await User.findOneAndUpdate(query, update, {
       new: true
     });
