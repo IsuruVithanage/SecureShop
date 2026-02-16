@@ -88,9 +88,10 @@ router.get('/me', auth, async (req, res) => {
 router.put('/', auth, async (req, res) => {
   try {
     const user = req.user._id;
-    const update = req.body.profile;
-    const query = { _id: user };
+    const query = { _id: user.toString() };
 
+    const { firstName, lastName, phoneNumber } = req.body.profile;
+    const update = { firstName, lastName, phoneNumber }; // Only allow these fields
     const userDoc = await User.findOneAndUpdate(query, update, {
       new: true
     });
