@@ -13,14 +13,33 @@ const { ROLES, CART_ITEM_STATUS } = require('../../constants');
 
 router.post('/add', auth, async (req, res) => {
   try {
-    const cart = req.body.cartId;
-    const total = req.body.total;
-    const user = req.user._id;
+    const cartId = req.body.cartId.toString();
+    const user = req.user._id.toString();
+
+    const sourceCart = await Cart.findById(cartId).populate('products.product');
+
+    if (!sourceCart) {
+      return res.status(400).json({ error: 'Cart not found.' });
+    }
+
+    let serverCalculatedTotal = 0;
+
+    sourceCart.products.forEach(item => {
+      if (item.product) {
+        if (item.product.price < 0) {
+          throw new Error(`Invalid price detected for ${item.product.name}`);
+        }
+        if (item.quantity <= 0) {
+          throw new Error(`Invalid quantity detected for ${item.product.name}`);
+        }
+        serverCalculatedTotal += item.product.price * item.quantity;
+      }
+    });
 
     const order = new Order({
-      cart,
+      cart: cartId,
       user,
-      total
+      total: serverCalculatedTotal
     });
 
     const orderDoc = await order.save();
@@ -49,7 +68,7 @@ router.post('/add', auth, async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({
-      error: 'Your request could not be processed. Please try again.'
+      error: error.message || 'Your request could not be processed. Please try again.'
     });
   }
 });
