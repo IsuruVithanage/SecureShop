@@ -15,6 +15,34 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// --- FIX 1: PATH TRAVERSAL PROTECTION MIDDLEWARE ---
+// This automatically strips ".." from requests to prevent file system access attacks
+app.use((req, res, next) => {
+    const clean = (input) => {
+        if (typeof input === 'string') {
+            return input.replace(/\.\./g, ''); // Remove ".." characters
+        }
+        return input;
+    };
+
+    // Clean request query parameters (e.g. ?id=../../)
+    if (req.query) {
+        for (const key in req.query) {
+            req.query[key] = clean(req.query[key]);
+        }
+    }
+
+    // Clean URL parameters (e.g. /api/brand/../../)
+    if (req.params) {
+        for (const key in req.params) {
+            req.params[key] = clean(req.params[key]);
+        }
+    }
+
+    next();
+});
+
+// --- FIX 2: UPDATED SECURITY HEADERS (CSP) ---
 app.use(
     helmet({
         contentSecurityPolicy: {
@@ -22,14 +50,17 @@ app.use(
                 defaultSrc: ["'self'"],
                 scriptSrc: [
                     "'self'",
-                    "https://js.stripe.com"
+                    "https://js.stripe.com",
+                    "'unsafe-eval'"
                 ],
                 styleSrc: [
                     "'self'",
+                    "'unsafe-inline'",
                     "https://fonts.googleapis.com"
                 ],
                 fontSrc: [
                     "'self'",
+                    "data:",
                     "https://fonts.gstatic.com"
                 ],
                 imgSrc: [
@@ -39,13 +70,17 @@ app.use(
                 ],
                 connectSrc: [
                     "'self'",
-                    "http://localhost:3000"
+                    "http://localhost:3000",
+                    "http://localhost:8080"
                 ],
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
                 frameAncestors: ["'none'"],
+                upgradeInsecureRequests: null,
             },
         },
+        // Fixes resource loading issues across ports
+        crossOriginResourcePolicy: { policy: "cross-origin" },
     })
 );
 
@@ -56,11 +91,11 @@ require('./config/passport')(app);
 app.use(routes);
 
 const server = app.listen(port, () => {
-  console.log(
-    `${chalk.green('✓')} ${chalk.blue(
-      `Listening on port ${port}. Visit http://localhost:${port}/ in your browser.`
-    )}`
-  );
+    console.log(
+        `${chalk.green('✓')} ${chalk.blue(
+            `Listening on port ${port}. Visit http://localhost:${port}/ in your browser.`
+        )}`
+    );
 });
 
 socket(server);
