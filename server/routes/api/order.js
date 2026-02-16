@@ -13,18 +13,28 @@ const { ROLES, CART_ITEM_STATUS } = require('../../constants');
 
 router.post('/add', auth, async (req, res) => {
   try {
-    const cart = req.body.cartId;
-    const total = req.body.total;
     const user = req.user._id;
+    const { cartId } = req.body;
+
+    const cart = await Cart.findOne({ _id: cartId }).populate('products.product');
+
+    if (!cart) {
+      return res.status(400).json({ error: 'Cart not found' });
+    }
+
+    // 2. SECURITY FIX: Re-calculate the total on the server side
+    let serverCalculatedTotal = 0;
+    cart.products.forEach(item => {
+      serverCalculatedTotal += item.product.price * item.quantity;
+    });
 
     const order = new Order({
       cart,
       user,
-      total
+      total: serverCalculatedTotal // <--- FIX 2: Use the SAFE calculated value
     });
 
     const orderDoc = await order.save();
-
     const cartDoc = await Cart.findById(orderDoc.cart._id).populate({
       path: 'products.product',
       populate: {
@@ -45,7 +55,7 @@ router.post('/add', auth, async (req, res) => {
     res.status(200).json({
       success: true,
       message: `Your order has been placed successfully!`,
-      order: { _id: orderDoc._id }
+      order: orderDoc
     });
   } catch (error) {
     res.status(400).json({
@@ -204,8 +214,18 @@ router.get('/:orderId', auth, async (req, res) => {
 
     let orderDoc = null;
 
+    if (!Mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        error: 'Invalid Order ID'
+      });
+    }
+
+    const safeId = new Mongoose.Types.ObjectId(orderId);
+
     if (req.user.role === ROLES.Admin) {
-      orderDoc = await Order.findOne({ _id: orderId }).populate({
+      orderDoc = await Order.findOne({
+        _id: safeId
+      }).populate({
         path: 'cart',
         populate: {
           path: 'products.product',
@@ -216,7 +236,10 @@ router.get('/:orderId', auth, async (req, res) => {
       });
     } else {
       const user = req.user._id;
-      orderDoc = await Order.findOne({ _id: orderId, user }).populate({
+      orderDoc = await Order.findOne({
+        _id: safeId,
+        user
+      }).populate({
         path: 'cart',
         populate: {
           path: 'products.product',
@@ -258,13 +281,31 @@ router.delete('/cancel/:orderId', auth, async (req, res) => {
   try {
     const orderId = req.params.orderId;
 
-    const order = await Order.findOne({ _id: orderId });
+    // 1. VALIDATE
+    if (!Mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ error: 'Invalid Order ID' });
+    }
+
+    // 2. SANITIZE
+    const safeId = new Mongoose.Types.ObjectId(orderId);
+
+    // 3. USE SAFE ID
+    const order = await Order.findOne({ _id: safeId });
+
+    // Add null check to prevent crash if order not found
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
     const foundCart = await Cart.findOne({ _id: order.cart });
 
-    increaseQuantity(foundCart.products);
+    if (foundCart) {
+      increaseQuantity(foundCart.products);
+      await Cart.deleteOne({ _id: order.cart });
+    }
 
-    await Order.deleteOne({ _id: orderId });
-    await Cart.deleteOne({ _id: order.cart });
+    // Use safeId here as well
+    await Order.deleteOne({ _id: safeId });
 
     res.status(200).json({
       success: true
@@ -283,39 +324,67 @@ router.put('/status/item/:itemId', auth, async (req, res) => {
     const cartId = req.body.cartId;
     const status = req.body.status || CART_ITEM_STATUS.Cancelled;
 
-    const foundCart = await Cart.findOne({ 'products._id': itemId });
-    const foundCartProduct = foundCart.products.find(p => p._id == itemId);
+    // 1. VALIDATE & SANITIZE: itemId (The main blocker)
+    if (!Mongoose.Types.ObjectId.isValid(itemId)) {
+      return res.status(400).json({ error: 'Invalid Item ID' });
+    }
+    const safeItemId = new Mongoose.Types.ObjectId(itemId);
+
+    // 2. USE SAFE ID in the query
+    // This fixes the specific SonarQube error on line 317
+    const foundCart = await Cart.findOne({ 'products._id': safeItemId });
+
+    if (!foundCart) {
+      return res.status(404).json({ error: 'Cart not found' });
+    }
+
+    // Find the product in the array (convert to string for safe comparison)
+    const foundCartProduct = foundCart.products.find(p => p._id.toString() === safeItemId.toString());
+
+    if (!foundCartProduct) {
+      return res.status(404).json({ error: 'Product not found in cart' });
+    }
 
     await Cart.updateOne(
-      { 'products._id': itemId },
-      {
-        'products.$.status': status
-      }
+        { 'products._id': safeItemId },
+        {
+          'products.$.status': status
+        }
     );
 
     if (status === CART_ITEM_STATUS.Cancelled) {
       await Product.updateOne(
-        { _id: foundCartProduct.product },
-        { $inc: { quantity: foundCartProduct.quantity } }
+          { _id: foundCartProduct.product },
+          { $inc: { quantity: foundCartProduct.quantity } }
       );
 
-      const cart = await Cart.findOne({ _id: cartId });
-      const items = cart.products.filter(
-        item => item.status === CART_ITEM_STATUS.Cancelled
-      );
+      // Validate other IDs before using them in deleteOne (Best Practice)
+      if (cartId && Mongoose.Types.ObjectId.isValid(cartId)) {
+        const safeCartId = new Mongoose.Types.ObjectId(cartId);
+        const cart = await Cart.findOne({ _id: safeCartId });
 
-      // All items are cancelled => Cancel order
-      if (cart.products.length === items.length) {
-        await Order.deleteOne({ _id: orderId });
-        await Cart.deleteOne({ _id: cartId });
+        if (cart) {
+          const items = cart.products.filter(
+              item => item.status === CART_ITEM_STATUS.Cancelled
+          );
 
-        return res.status(200).json({
-          success: true,
-          orderCancelled: true,
-          message: `${
-            req.user.role === ROLES.Admin ? 'Order' : 'Your order'
-          } has been cancelled successfully`
-        });
+          // All items are cancelled => Cancel order
+          if (cart.products.length === items.length) {
+            // Secure the orderId deletion as well
+            if (orderId && Mongoose.Types.ObjectId.isValid(orderId)) {
+              await Order.deleteOne({ _id: new Mongoose.Types.ObjectId(orderId) });
+            }
+            await Cart.deleteOne({ _id: safeCartId });
+
+            return res.status(200).json({
+              success: true,
+              orderCancelled: true,
+              message: `${
+                  req.user.role === ROLES.Admin ? 'Order' : 'Your order'
+              } has been cancelled successfully`
+            });
+          }
+        }
       }
 
       return res.status(200).json({

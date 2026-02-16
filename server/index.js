@@ -14,12 +14,41 @@ const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
 app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    frameguard: true
-  })
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: [
+                    "'self'",
+                    "https://js.stripe.com"
+                ],
+                styleSrc: [
+                    "'self'",
+                    "https://fonts.googleapis.com"
+                ],
+                fontSrc: [
+                    "'self'",
+                    "https://fonts.gstatic.com"
+                ],
+                imgSrc: [
+                    "'self'",
+                    "data:",
+                    "https://res.cloudinary.com"
+                ],
+                connectSrc: [
+                    "'self'",
+                    "http://localhost:3000"
+                ],
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+                frameAncestors: ["'none'"],
+            },
+        },
+    })
 );
+
 app.use(cors());
 
 setupDB();
