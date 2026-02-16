@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const Mongoose = require("mongoose");
-
+const escapeStringRegexp = require("escape-string-regexp");
 const Product = require("../../models/product");
 const Brand = require("../../models/brand");
 const Category = require("../../models/category");
@@ -55,7 +55,8 @@ router.get("/item/:slug", async (req, res) => {
 router.get("/list/search/:name", async (req, res) => {
   try {
     const name = req.params.name;
-    const regex = new RegExp(name, "is");
+    const safeName = escapeStringRegexp(name.toString());
+    const regex = new RegExp(safeName, "is");
 
     const productDoc = await Product.find(
       { name: { $regex: regex }, isActive: true },
