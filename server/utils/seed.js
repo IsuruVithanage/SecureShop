@@ -1,5 +1,5 @@
 // server/utils/seed.js
-
+require("dotenv").config();
 const chalk = require("chalk");
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
