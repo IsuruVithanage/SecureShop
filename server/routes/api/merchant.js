@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs'); // For hashing passwords
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const escapeStringRegexp = require('escape-string-regexp');
-const rateLimit = require('express-rate-limit'); // --- FIX: Import Rate Limiter ---
+const rateLimit = require('express-rate-limit'); // Risk 10 Fix (Rate Limiting)
 
 // Bring in Models & Helpers
 const { MERCHANT_STATUS, ROLES } = require('../../constants');
@@ -14,20 +14,18 @@ const auth = require('../../middleware/auth');
 const role = require('../../middleware/role');
 const mailgun = require('../../services/mailgun');
 
-// --- FIX: Define Rate Limit Rule ---
-// Limit: 5 requests per 15 minutes per IP address
+// Risk 10: Rate Limiter for Merchant Applications
 const merchantApplicationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   message: {
     error: 'Too many merchant applications from this IP, please try again after 15 minutes.'
   },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // add merchant api
-// --- FIX: Apply 'merchantApplicationLimiter' middleware here ---
 router.post('/add', merchantApplicationLimiter, async (req, res) => {
   try {
     const { name, business, phoneNumber, email, brandName } = req.body;
@@ -81,7 +79,7 @@ router.post('/add', merchantApplicationLimiter, async (req, res) => {
   }
 });
 
-// search merchants api
+// search merchants api (Already Secure)
 router.get('/search', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const { search } = req.query;
@@ -108,7 +106,7 @@ router.get('/search', auth, role.check(ROLES.Admin), async (req, res) => {
   }
 });
 
-// fetch all merchants api
+// fetch all merchants api (Already Secure)
 router.get('/', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
@@ -136,7 +134,8 @@ router.get('/', auth, role.check(ROLES.Admin), async (req, res) => {
 });
 
 // disable merchant account
-router.put('/:id/active', auth, async (req, res) => {
+// --- FIX: Added role.check(ROLES.Admin) ---
+router.put('/:id/active', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const merchantId = req.params.id;
     const update = req.body.merchant;
@@ -162,7 +161,8 @@ router.put('/:id/active', auth, async (req, res) => {
 });
 
 // approve merchant
-router.put('/approve/:id', auth, async (req, res) => {
+// --- FIX: Added role.check(ROLES.Admin) (Risk 11) ---
+router.put('/approve/:id', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const merchantId = req.params.id;
     const query = { _id: merchantId.toString() };
@@ -193,7 +193,8 @@ router.put('/approve/:id', auth, async (req, res) => {
 });
 
 // reject merchant
-router.put('/reject/:id', auth, async (req, res) => {
+// --- FIX: Added role.check(ROLES.Admin) ---
+router.put('/reject/:id', auth, role.check(ROLES.Admin), async (req, res) => {
   try {
     const merchantId = req.params.id;
 
@@ -216,6 +217,7 @@ router.put('/reject/:id', auth, async (req, res) => {
   }
 });
 
+// signup (Merchant invitation flow)
 router.post('/signup/:token', async (req, res) => {
   try {
     const { email, firstName, lastName, password } = req.body;
@@ -294,6 +296,7 @@ router.delete(
   }
 );
 
+// Helper functions (remain unchanged)
 const deactivateBrand = async merchantId => {
   const merchantDoc = await Merchant.findOne({ _id: merchantId.toString() }).populate(
     'brand',
