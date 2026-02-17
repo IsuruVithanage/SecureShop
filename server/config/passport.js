@@ -14,7 +14,20 @@ const User = mongoose.model('User');
 const secret = keys.jwt.secret;
 
 const opts = {};
-opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+
+// FIX: Support both Authorization header and cookie for JWT extraction
+opts.jwtFromRequest = ExtractJwt.fromExtractors([
+  ExtractJwt.fromAuthHeaderAsBearerToken(),
+  (req) => {
+    if (!req) return null;
+    if (req.cookies && req.cookies.token) return req.cookies.token;
+    if (req.headers && req.headers.cookie) {
+      const match = req.headers.cookie.match(/(?:^|; )token=([^;]+)/);
+      if (match) return match[1];
+    }
+    return null;
+  }
+]);
 opts.secretOrKey = secret;
 
 passport.use(

@@ -8,12 +8,14 @@ const keys = require('./config/keys');
 const routes = require('./routes');
 const socket = require('./socket');
 const setupDB = require('./utils/db');
+const cookieParser = require('cookie-parser'); // For parsing cookies
 
 const { port } = keys;
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cookieParser()); // Use cookie parser middleware
 
 // --- FIX 1: PATH TRAVERSAL PROTECTION MIDDLEWARE ---
 app.use((req, res, next) => {
