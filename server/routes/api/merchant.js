@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs'); // For hashing passwords
 const crypto = require('crypto');
 const escapeStringRegexp = require('escape-string-regexp');
+const rateLimit = require('express-rate-limit'); // --- FIX: Import Rate Limiter ---
 
 // Bring in Models & Helpers
 const { MERCHANT_STATUS, ROLES } = require('../../constants');
@@ -13,8 +14,21 @@ const auth = require('../../middleware/auth');
 const role = require('../../middleware/role');
 const mailgun = require('../../services/mailgun');
 
+// --- FIX: Define Rate Limit Rule ---
+// Limit: 5 requests per 15 minutes per IP address
+const merchantApplicationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: {
+    error: 'Too many merchant applications from this IP, please try again after 15 minutes.'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
 // add merchant api
-router.post('/add', async (req, res) => {
+// --- FIX: Apply 'merchantApplicationLimiter' middleware here ---
+router.post('/add', merchantApplicationLimiter, async (req, res) => {
   try {
     const { name, business, phoneNumber, email, brandName } = req.body;
 
