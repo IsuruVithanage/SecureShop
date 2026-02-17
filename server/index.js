@@ -16,7 +16,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // --- FIX 1: PATH TRAVERSAL PROTECTION MIDDLEWARE ---
-// This automatically strips ".." from requests to prevent file system access attacks
 app.use((req, res, next) => {
     const clean = (input) => {
         if (typeof input === 'string') {
@@ -25,14 +24,12 @@ app.use((req, res, next) => {
         return input;
     };
 
-    // Clean request query parameters (e.g. ?id=../../)
     if (req.query) {
         for (const key in req.query) {
             req.query[key] = clean(req.query[key]);
         }
     }
 
-    // Clean URL parameters (e.g. /api/brand/../../)
     if (req.params) {
         for (const key in req.params) {
             req.params[key] = clean(req.params[key]);
@@ -42,51 +39,51 @@ app.use((req, res, next) => {
     next();
 });
 
-// --- FIX 2: UPDATED SECURITY HEADERS (CSP) ---
+// --- FIX 2: INFRASTRUCTURE SECURITY HEADERS (Helmet) ---
 app.use(
     helmet({
+        // 1. Content Security Policy (XSS Protection)
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-
                 scriptSrc: [
                     "'self'",
-                    "https://js.stripe.com"
+                    "https://js.stripe.com",
+                    "'unsafe-eval'" // Needed for some React builds, remove if possible
                 ],
-
                 styleSrc: [
                     "'self'",
+                    "'unsafe-inline'",
                     "https://fonts.googleapis.com"
                 ],
-
                 fontSrc: [
                     "'self'",
                     "https://fonts.gstatic.com"
                 ],
-
                 imgSrc: [
                     "'self'",
                     "data:",
                     "https://res.cloudinary.com"
                 ],
-
                 connectSrc: [
                     "'self'",
                     "http://localhost:3000",
                     "http://localhost:8080"
                 ],
-
-                /** 🔒 REQUIRED BY ZAP **/
-                formAction: ["'self'"],            // FIX 1
-                frameAncestors: ["'none'"],         // FIX 2
-
+                formAction: ["'self'"],
+                frameAncestors: ["'none'"], // Modern Clickjacking Protection
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
-
                 upgradeInsecureRequests: null,
             },
         },
+        frameguard: { action: 'deny' },
+
+        noSniff: true,
+
+        hidePoweredBy: true,
         crossOriginResourcePolicy: { policy: "cross-origin" },
+        referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     })
 );
 
