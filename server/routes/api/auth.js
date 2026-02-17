@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs'); // For hashing passwords
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const passport = require('passport');
@@ -45,8 +46,8 @@ router.post('/login', async (req, res) => {
         error: `That email address is already in use using ${user.provider} provider.`
       });
     }
-
-    const isMatch = password === user.password;
+    // Check password
+     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(400).json({
@@ -128,9 +129,13 @@ router.post('/register', async (req, res) => {
       firstName,
       lastName
     });
+    // Hash password before saving to database
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(user.password, salt);
+
+    user.password = hash;
 
     const registeredUser = await user.save();
-
     const payload = {
       id: registeredUser.id
     };
@@ -235,8 +240,11 @@ router.post('/reset/:token', async (req, res) => {
           'Your token has expired. Please attempt to reset your password again.'
       });
     }
+    // Hash new password before saving to database
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
 
-    resetUser.password = password;
+    resetUser.password = hash;
     resetUser.resetPasswordToken = undefined;
     resetUser.resetPasswordExpires = undefined;
 
@@ -275,16 +283,18 @@ router.post('/reset', auth, async (req, res) => {
         .status(400)
         .json({ error: 'That email address is already in use.' });
     }
-
-    const isMatch = password === existingUser.password;
+    // Check password
+     const isMatch = await bcrypt.compare(password, existingUser.password);
 
     if (!isMatch) {
       return res
         .status(400)
         .json({ error: 'Please enter your correct old password.' });
     }
-
-    existingUser.password = confirmPassword;
+   // Hash new password before saving to database
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(confirmPassword, salt);
+    existingUser.password = hash;
     existingUser.save();
 
     await mailgun.sendEmail(existingUser.email, 'reset-confirmation');
