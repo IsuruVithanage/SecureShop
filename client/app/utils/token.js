@@ -4,7 +4,12 @@
  * axios default headers setup
  */
 
+
+
 import axios from 'axios';
+
+// Set withCredentials to true for all requests to include cookies
+axios.defaults.withCredentials = true;
 
 const setToken = token => {
   if (token) {

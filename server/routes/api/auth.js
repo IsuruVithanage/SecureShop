@@ -16,6 +16,16 @@ const { EMAIL_PROVIDER, JWT_COOKIE } = require('../../constants');
 
 const { secret, tokenLife } = keys.jwt;
 
+// Helper function to set token cookie
+const setTokenCookie = (res, token) => {
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+};
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -61,14 +71,13 @@ router.post('/login', async (req, res) => {
     };
 
     const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
-
-    if (!token) {
-      throw new Error();
-    }
-
+     
+    // FIX: Set the token in an HTTP-only cookie instead of sending it in the response body
+    setTokenCookie(res, token);
+     
+    // Send user data in response (without token) since it's now in the cookie
     res.status(200).json({
       success: true,
-      token: `Bearer ${token}`,
       user: {
         id: user.id,
         firstName: user.firstName,
@@ -149,10 +158,13 @@ router.post('/register', async (req, res) => {
 
     const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
 
+    // FIX: Set the token in an HTTP-only cookie instead of sending it in the response body
+    setTokenCookie(res, token);
+    
+    // Send user data in response (without token) since it's now in the cookie
     res.status(200).json({
       success: true,
       subscribed,
-      token: `Bearer ${token}`,
       user: {
         id: registeredUser.id,
         firstName: registeredUser.firstName,
@@ -327,16 +339,18 @@ router.get(
     failureRedirect: `${keys.app.clientURL}/login`,
     session: false
   }),
+  
   (req, res) => {
-    const payload = {
-      id: req.user.id
-    };
+  const payload = {
+    id: req.user.id
+  };
 
-    // TODO find another way to send the token to frontend
-    const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
-    const jwtToken = `Bearer ${token}`;
-    res.redirect(`${keys.app.clientURL}/auth/success?token=${jwtToken}`);
-  }
+  const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
+  
+  // FIX: Set the cookie instead of putting it in the URL
+  setTokenCookie(res, token);
+  res.redirect(`${keys.app.clientURL}/dashboard`);
+}
 );
 
 router.get(
@@ -353,14 +367,18 @@ router.get(
     failureRedirect: `${keys.app.clientURL}/login`,
     session: false
   }),
+  
   (req, res) => {
-    const payload = {
-      id: req.user.id
-    };
-    const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
-    const jwtToken = `Bearer ${token}`;
-    res.redirect(`${keys.app.clientURL}/auth/success?token=${jwtToken}`);
-  }
+  const payload = {
+    id: req.user.id
+  };
+
+  const token = jwt.sign(payload, secret, { expiresIn: tokenLife });
+  
+  // FIX: Set the cookie instead of putting it in the URL
+  setTokenCookie(res, token);
+  res.redirect(`${keys.app.clientURL}/dashboard`);
+}
 );
 
 module.exports = router;
